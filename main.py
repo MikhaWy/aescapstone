@@ -1,10 +1,19 @@
 import language_tool_python
 import spacy
 import nltk
+import math
 from transformers import pipeline
 from nltk.corpus import reuters
 from nltk.probability import FreqDist
 from nltk.tokenize import word_tokenize
+
+multiplier_gr = 3
+multiplier_ld = 7
+multiplier_sc = 10
+multiplier_wf = 1
+
+def round_to_nearest_half(number):
+    return round(number * 2) / 2
 
 def calculate_ta(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
@@ -32,20 +41,20 @@ def calculate_gr(file_path):
     sentences = nltk.sent_tokenize(paragraph)
     num_sentences = len(sentences)
     num_errors = len(matches)
-    grammar_score = ((num_sentences - num_errors) / num_sentences) * 9
-
-    # Print the grammar score in the terminal
-    print("Grammatical Range: ", grammar_score,)
+    grammar_score = ((num_sentences - num_errors) / num_sentences)
+    rounded_gr = round_to_nearest_half(grammar_score * 9)
+    print("Grammatical Range: ", rounded_gr,)
+    return rounded_gr
 
 def calculate_ld(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         paragraph = file.read()
     tokens = nltk.word_tokenize(paragraph)
     types = set(tokens)
-    lexical_diversity = (len(types) / len(tokens)) * 9
-
-    # Print the lexical diversity score in the terminal
-    print("Lexical Diversity: ", lexical_diversity)
+    lexical_diversity = (len(types) / len(tokens))
+    rounded_ld = round_to_nearest_half(lexical_diversity * 9)
+    print("Lexical Diversity: ", rounded_ld,)
+    return rounded_ld
 
 def calculate_sc(file_path):
     # Load the SpaCy model
@@ -68,9 +77,10 @@ def calculate_sc(file_path):
             complex_sentences += 1
     
     # Calculate the syntactic complexity
-    syntactic_complexity = (complex_sentences / len(list(doc.sents))) * 9
-    
-    print("Syntactic Complexity: ", syntactic_complexity)
+    syntactic_complexity = (complex_sentences / len(list(doc.sents)))
+    rounded_sc = round_to_nearest_half(syntactic_complexity * 9)
+    print("Syntactic Complexity: ", rounded_sc,)
+    return rounded_sc
 
 fdist = FreqDist(word.lower() for word in reuters.words())
 
@@ -81,13 +91,32 @@ def calculate_wf(file_path):
     score = 0
     for token in tokens:
         # We add 1 to the frequency to avoid division by zero for words not in the corpus
-        score += 1 / (fdist[token.lower()] + 1)
-    # Normalize the score to a range of 0 to 100
-    word_frequency = (score / len(tokens)) * 9
-    print("Word Frequency: ", word_frequency)
+        # We take the square root of the frequency instead of the inverse
+        score += 1 / (math.sqrt(fdist[token.lower()]) + 1)
+    # Normalize the score to a range of 0 to 9
+    word_frequency = (score / len(tokens))
+    rounded_wf = round_to_nearest_half(word_frequency * 9)
+    print("Word Frequency: ", rounded_wf,)
+    return rounded_wf
+    
+def calculate_weighted_average(score_gr, score_ld, score_wf, score_sc):
+    # Calculate the weighted scores
+    weighted_score_gr = score_gr * multiplier_gr
+    weighted_score_ld = score_ld * multiplier_ld
+    weighted_score_wf = score_wf * multiplier_wf
+    weighted_score_sc = score_sc * multiplier_sc
+
+    # Calculate the final score
+    final_score = weighted_score_gr + weighted_score_ld + weighted_score_wf + weighted_score_sc
+    sum_multiplier = multiplier_gr + multiplier_ld + multiplier_wf + multiplier_sc
+    average_score = round_to_nearest_half(final_score / sum_multiplier)
+
+    print("Average Weighted Score: ", average_score)
+    return average_score
 
 calculate_ta("entry.txt")
-calculate_gr("entry.txt")
-calculate_ld("entry.txt")
-calculate_sc("entry.txt")
-calculate_wf("entry.txt")
+rounded_gr = calculate_gr("entry.txt")
+rounded_ld = calculate_ld("entry.txt")
+rounded_sc = calculate_sc("entry.txt")
+rounded_wf = calculate_wf("entry.txt")
+calculate_weighted_average(rounded_gr, rounded_ld, rounded_wf, rounded_sc)
